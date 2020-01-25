@@ -1,0 +1,19 @@
+
+gcloud container clusters create pub-sub-cluster --num-nodes 2  --machine-type g1-small  --zone us-central1-c --scopes cloud-platform 
+
+kubectl create deployment pub-app  --image=gcr.io/$CLOUDSDK_CORE_PROJECT/pub-app:v1
+kubectl create deployment sub-app  --image=gcr.io/$CLOUDSDK_CORE_PROJECT/sub-app:v1
+
+kubectl create service loadbalancer pub-app --tcp=8080:8080
+kubectl create service loadbalancer sub-app --tcp=8080:8080
+
+kubectl create clusterrolebinding cluster-admin-binding  --clusterrole cluster-admin --user "$(gcloud config get-value account)"
+
+kubectl create -f https://raw.githubusercontent.com/GoogleCloudPlatform/k8s-stackdriver/master/custom-metrics-stackdriver-adapter/deploy/production/adapter.yaml
+
+kubectl apply -f pub-sub-hpa.yaml
+
+
+
+
+gcloud container clusters delete pub-sub-cluster --zone us-central1-c
