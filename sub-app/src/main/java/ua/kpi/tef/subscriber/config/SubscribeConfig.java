@@ -39,6 +39,11 @@ public class SubscribeConfig {
     @ServiceActivator(inputChannel = "pubsubInputChannel")
     public MessageHandler messageReceiver() {
         return message -> {
+            try {
+                Thread.sleep(5000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
             log.info("Message arrived! Payload: {} ", new String((byte[]) message.getPayload()));
             BasicAcknowledgeablePubsubMessage originalMessage =
                     message.getHeaders().get(GcpPubSubHeaders.ORIGINAL_MESSAGE, BasicAcknowledgeablePubsubMessage.class);
