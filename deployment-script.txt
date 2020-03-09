@@ -1,8 +1,54 @@
 
+git clone https://github.com/Zephyrkina/PubSubTest.git
+
+cd PubSubTest/
+
+// 1. create a project
+
+gcloud projects create diploma-project-12345 --name="Diploma project" --labels=type=diploma
+
+//set an env var of CLOUDSDK_CORE_PROJECT in bash_profile
+//or export CLOUDSDK_CORE_PROJECT=diploma-project-12345
+
+gcloud alpha billing accounts list 
+gcloud alpha billing accounts projects link $CLOUDSDK_CORE_PROJECT --billing-account=ACCOUNT_ID
+
+
+
+// 2. setup pub/sub
+
+gcloud pubsub topics create testTopic
+gcloud pubsub subscriptions create testSubscription  --topic testTopic 
+
+
+
+// 3. push images to gcp
+
+gcloud services enable containerregistry.googleapis.com
+
+cd pub-app/
+./mvnw -DskipTests package
+./mvnw -DskipTests com.google.cloud.tools:jib-maven-plugin:build  -Dimage=gcr.io/$CLOUDSDK_CORE_PROJECT/pub-app:v1
+
+ cd ../sub-app/
+ ./mvnw -DskipTests package
+./mvnw -DskipTests com.google.cloud.tools:jib-maven-plugin:build  -Dimage=gcr.io/$CLOUDSDK_CORE_PROJECT/sub-app:v1
+
+cd ../
+
+
+ 
+
+// 4. setup kubernetes
+
+gcloud services enable compute.googleapis.com container.googleapis.com
+
 gcloud container clusters create pub-sub-cluster --num-nodes 2  --machine-type g1-small  --zone us-central1-c --scopes cloud-platform 
 
 kubectl create deployment pub-app  --image=gcr.io/$CLOUDSDK_CORE_PROJECT/pub-app:v1
 kubectl create deployment sub-app  --image=gcr.io/$CLOUDSDK_CORE_PROJECT/sub-app:v1
+
+// wait until pods are successfully running
 
 kubectl create service loadbalancer pub-app --tcp=8080:8080
 kubectl create service loadbalancer sub-app --tcp=8080:8080
@@ -14,6 +60,23 @@ kubectl create -f https://raw.githubusercontent.com/GoogleCloudPlatform/k8s-stac
 kubectl apply -f pub-sub-hpa.yaml
 
 
+//wait until service external ips are exposed
 
+kubectl get services
+
+
+// call
+
+POST http://{pub-app-external-ip}:8080/publishMessage?message=hello
+
+
+
+
+
+// 5. Clean up 
 
 gcloud container clusters delete pub-sub-cluster --zone us-central1-c
+
+gcloud pubsub subscriptions delete testSubscription 
+
+gcloud pubsub topics delete testTopic
